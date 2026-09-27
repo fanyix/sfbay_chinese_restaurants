@@ -3,6 +3,7 @@ var L = U();
 var innerWidth=390, innerHeight=844;
 var matchMedia = q => ({ matches: q.includes('max-width') ? MOBILE : q.includes('hover: hover') ? !MOBILE : false, addEventListener(){} });
 var addEventListener = ()=>{}; var alert = ()=>{};
+var navigator = { userAgent: MOBILE ? 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)' : 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)' };
 var getComputedStyle = () => ({ top: '47px' });
 const els = {};
 function El(id){ const o={id, children:[], value:'', checked:false, innerHTML:'', textContent:'', dataset:{}, hidden:false, offsetTop:100, offsetHeight: id==='side'?776:(id==='sab-probe'?34:30), clientHeight:300, scrollTop:0,

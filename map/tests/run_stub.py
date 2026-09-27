@@ -21,6 +21,8 @@ TEST = r'''
  $('reset').onclick(); ok('reset', n() === DATA.length && state.region.size === 0);
  $('q').oninput({ target: { value: '点心' } }); ok('search 点心 > 0', n() > 0);
  ok('popups render', DATA.every(d => popup(d).length > 200));
+ ok('cat chips = CATS, all used', fCat.children.length === CATS.length && CATS.every(c => DATA.some(d => d.cat === c)) && DATA.every(d => CATS.includes(d.cat)));
+ ok('小红书 link ' + (MOBILE ? 'app scheme' : 'web'), links(DATA[0]).includes(MOBILE ? 'xhsdiscover://search/result?keyword=' : 'xiaohongshu.com/search_result/?keyword='));
  return out.join('\n');'''
 fail = False
 for mobile in ('false', 'true'):

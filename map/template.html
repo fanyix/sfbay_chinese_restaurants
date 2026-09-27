@@ -56,7 +56,7 @@ body {
 header { padding: 16px 16px 10px; }
 h1 { font-size: 18px; margin: 0 0 4px; font-weight: 650; }
 .sub { color: var(--ink-2); font-size: 12px; line-height: 1.5; }
-.filters { padding: 4px 16px 12px; border-bottom: 1px solid var(--hair); display: grid; gap: 10px; }
+.filters { padding: 4px 16px 12px; border-bottom: 1px solid var(--hair); display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }   /* minmax: nowrap chip rows must not widen the column */
 .search { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--hair); background: var(--page); color: var(--ink); font: inherit; }
 .search:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
@@ -175,6 +175,7 @@ label.tog { font-size: 12px; color: var(--ink-2); display: inline-flex; gap: 5px
   #f-cat, #f-region { flex-wrap: nowrap; overflow-x: auto; flex: 1; min-width: 0; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
   #f-cat::-webkit-scrollbar, #f-region::-webkit-scrollbar { display: none; }
   #f-cat .chip, #f-region .chip { flex: none; }
+  #f-cat::after, #f-region::after { content: ''; flex: 0 0 8px; }   /* end gap; Safari drops padding-right in scrollers */
   .chip { padding: 6px 12px; font-size: 13px; }
   select { font-size: 16px; padding: 6px 8px; }
   label.tog { font-size: 13px; padding: 4px 0; }
@@ -231,7 +232,7 @@ const CONF_CLS = Object.fromEntries(CONF);
 const CONF_DESC = {'高':'华人经营 + 中文店名/网站','中':'中餐，有中文名或菜单','低':'弱推断（美式中餐/越南华人等）'};
 const SIZE = {high: 16, mid: 13, low: 10};
 const REGIONS = ['旧金山','半岛','东湾','南湾','北湾'];
-const CATS = ['粤菜/港式','川湘/西南','台湾菜','火锅/麻辣烫','北方/东北/江浙','西北/新疆/清真','面食/饺子','美式中餐/越南华人','其他中餐'];
+const CATS = ['粤菜/港式','川湘/西南','台湾菜','火锅/麻辣烫','北方/东北','江浙','西北/新疆/清真','面食/饺子','美式中餐/越南华人','其他中餐'];
 
 const state = { q: '', region: new Set(), conf: new Set(['高','中','低']), cat: new Set(), city: '', lang: '', bounds: false };
 
@@ -277,13 +278,23 @@ function icon(d, sel) {
   });
 }
 
+// xiaohongshu.com has no mobile web search (it 404s), so phones open the app's search; desktop web search needs a login
+// (no target=_blank on phones: a new tab for an app scheme leaves a blank tab behind)
+const IS_PHONE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+function xhs(d) {
+  const kw = encodeURIComponent(`${d.zh || d.en} ${d.city}`);
+  return IS_PHONE
+    ? `xhsdiscover://search/result?keyword=${kw}`
+    : `https://www.xiaohongshu.com/search_result/?keyword=${kw}&source=web_search_result_notes`;
+}
+
 function links(d) {
   const q = encodeURIComponent(`${d.en} ${d.addr || d.city}`);
   const pid = d.pid ? `&query_place_id=${encodeURIComponent(d.pid)}` : '';
   return `<div class="links">
     <a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${q}${pid}">Google Maps</a>
     <a target="_blank" rel="noopener" href="https://www.yelp.com/search?find_desc=${encodeURIComponent(d.en)}&find_loc=${encodeURIComponent(d.city + ', CA')}">Yelp</a>
-    <a target="_blank" rel="noopener" href="https://www.xiaohongshu.com/search_result?keyword=${encodeURIComponent((d.zh || d.en) + ' ' + d.city)}">小红书</a>
+    <a ${IS_PHONE ? '' : 'target="_blank" rel="noopener" '}href="${xhs(d)}">小红书</a>
   </div>`;
 }
 

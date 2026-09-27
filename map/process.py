@@ -124,7 +124,8 @@ def cat_of(cuisine):
                      ('台湾菜', ['taiwan']), ('粤菜/港式', ['cantonese', 'hong kong', 'hk', 'dim sum', 'cha chaan']),
                      ('川湘/西南', ['sichuan', 'hunan', 'chongqing', 'guizhou', 'guangxi', 'yunnan']),
                      ('西北/新疆/清真', ['uyghur', 'xinjiang', 'halal', 'lanzhou', "xi'an", 'islamic', 'northwest']),
-                     ('北方/东北/江浙', ['northern', 'dongbei', 'northeast', 'beijing', 'shandong', 'shanghai', 'mongolian', 'zhejiang', 'jiangsu']),
+                     ('江浙', ['shanghai', 'zhejiang', 'jiangsu', 'hangzhou', 'suzhou', 'ningbo', 'nanjing', 'huaiyang', 'wuxi']),
+                     ('北方/东北', ['northern', 'dongbei', 'northeast', 'beijing', 'shandong', 'mongolian', 'tianjin']),
                      ('面食/饺子', ['noodle', 'dumpling', 'bun', 'xlb', 'huoshao'])]:
         if any(k in c for k in kws): return cat
     return '其他中餐'
@@ -228,6 +229,7 @@ def existing():
     d = J('data_southbay_backup.json'); g = J('gmaps_status.json')   # original 213 South Bay entries
     for x in d:
         x['region'] = '南湾'
+        if x['cat'] == '北方/东北/江浙': x['cat'] = cat_of(x['cuisine'])   # bucket was split in two
         if x.get('pid'): continue
         best = None
         for v in g.values():

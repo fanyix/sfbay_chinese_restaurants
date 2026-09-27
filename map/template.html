@@ -291,7 +291,7 @@ function popup(d) {
     <dl>
       <dt>说中文</dt><dd><span class="dot ${CONF_CLS[d.conf]}" style="display:inline-block;width:9px;height:9px;margin:0 4px 0 0;vertical-align:0"></span>${d.conf} · ${CONF_DESC[d.conf]}</dd>
       <dt>服务员语言</dt><dd>${esc(d.lang)}</dd>
-      <dt>菜系</dt><dd>${esc(d.cuisine)}</dd>
+      <dt>菜系</dt><dd>${esc(d.cuisineZh)}</dd>
       <dt>地址</dt><dd>${esc(d.addr || '（无地址，位置为估计）')}${d.dist != null ? ` <span style="color:var(--muted)">· ${fmtDist(d.dist)}</span>` : ''}</dd>
     </dl>
     <div class="ev">依据：${esc(d.ev)}</div>
@@ -399,7 +399,7 @@ function matches(d) {
   if (state.city && d.city !== state.city) return false;
   if (state.lang && !d.lang.includes(state.lang)) return false;
   if (state.q) {
-    const hay = `${d.en} ${d.zh} ${d.cuisine} ${d.cat} ${d.addr} ${d.city} ${d.area}`.toLowerCase();
+    const hay = `${d.en} ${d.zh} ${d.cuisine} ${d.cuisineZh} ${d.cat} ${d.addr} ${d.city} ${d.area}`.toLowerCase();
     if (!hay.includes(state.q)) return false;
   }
   return true;
@@ -434,7 +434,7 @@ function renderList() {
       <span class="dot ${CONF_CLS[d.conf]}"></span>
       <div>
         <div class="t"><span class="zh">${esc(d.zh || d.en)}</span>${d.zh ? `<span class="en">${esc(d.en)}</span>` : ''}${d.direct ? '<span class="badge ok">✓ 已证实说中文</span>' : ''}</div>
-        <div class="m">${d.dist != null ? `<span class="dist">${fmtDist(d.dist)}</span> · ` : ''}${esc(d.city)} · ${esc(d.cuisine)} · 服务员：${esc(d.lang)} · 说中文可能性${d.conf}</div>
+        <div class="m">${d.dist != null ? `<span class="dist">${fmtDist(d.dist)}</span> · ` : ''}${esc(d.city)} · ${esc(d.cuisineZh)} · 服务员：${esc(d.lang)} · 说中文可能性${d.conf}</div>
       </div>
     </div>`).join('') || '<div class="item" style="display:block;color:var(--muted)">没有符合条件的餐馆</div>';
 }

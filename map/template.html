@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#fcfcfb" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#1a1a19" media="(prefers-color-scheme: dark)">
-<title>南湾中餐馆地图</title>
+<title>湾区中餐馆地图</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
 <style>
@@ -172,9 +172,9 @@ label.tog { font-size: 12px; color: var(--ink-2); display: inline-flex; gap: 5px
   .filters { display: none; padding: 4px 12px 12px; }
   #side.filters-open .filters { display: grid; }
   .row > .lbl { width: 40px; }
-  #f-cat { flex-wrap: nowrap; overflow-x: auto; flex: 1; min-width: 0; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
-  #f-cat::-webkit-scrollbar { display: none; }
-  #f-cat .chip { flex: none; }
+  #f-cat, #f-region { flex-wrap: nowrap; overflow-x: auto; flex: 1; min-width: 0; scrollbar-width: none; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+  #f-cat::-webkit-scrollbar, #f-region::-webkit-scrollbar { display: none; }
+  #f-cat .chip, #f-region .chip { flex: none; }
   .chip { padding: 6px 12px; font-size: 13px; }
   select { font-size: 16px; padding: 6px 8px; }
   label.tog { font-size: 13px; padding: 4px 0; }
@@ -195,8 +195,8 @@ label.tog { font-size: 12px; color: var(--ink-2); display: inline-flex; gap: 5px
   <div id="sheet-head">
     <div id="grab" aria-hidden="true"><span></span></div>
     <header>
-      <h1>南湾中餐馆地图</h1>
-      <div class="sub">共 <b id="total"></b> 家中餐馆，每家都标了服务员说中文的可能性和语言（普通话/粤语）。只有标 ✓ 的有评论直接证实，其余是按华人经营、中文店名和菜系推断的，去之前建议先打电话确认。</div>
+      <h1>湾区中餐馆地图</h1>
+      <div class="sub">旧金山、半岛、东湾、南湾、北湾共 <b id="total"></b> 家中餐馆，每家都标了服务员说中文的可能性和语言（普通话/粤语）。只有标 ✓ 的有评论直接证实，其余是按华人经营、中文店名和菜系推断的，去之前建议先打电话确认。</div>
     </header>
   </div>
   <div class="toolbar">
@@ -204,6 +204,7 @@ label.tog { font-size: 12px; color: var(--ink-2); display: inline-flex; gap: 5px
     <button id="filter-btn" class="tbtn" type="button" aria-expanded="false">筛选<span id="filter-n" class="fn" hidden></span></button>
   </div>
   <div class="filters">
+    <div class="row"><span class="lbl">地区</span><span id="f-region" class="row"></span></div>
     <div class="row"><span class="lbl">说中文</span><span id="f-conf" class="row"></span></div>
     <div class="row"><span class="lbl">菜系</span><span id="f-cat" class="row"></span></div>
     <div class="row">
@@ -229,9 +230,10 @@ const CONF = [['高','high'],['中','mid'],['低','low']];
 const CONF_CLS = Object.fromEntries(CONF);
 const CONF_DESC = {'高':'华人经营 + 中文店名/网站','中':'中餐，有中文名或菜单','低':'弱推断（美式中餐/越南华人等）'};
 const SIZE = {high: 16, mid: 13, low: 10};
+const REGIONS = ['旧金山','半岛','东湾','南湾','北湾'];
 const CATS = ['粤菜/港式','川湘/西南','台湾菜','火锅/麻辣烫','北方/东北/江浙','西北/新疆/清真','面食/饺子','美式中餐/越南华人','其他中餐'];
 
-const state = { q: '', conf: new Set(['高','中','低']), cat: new Set(), city: '', lang: '', bounds: false };
+const state = { q: '', region: new Set(), conf: new Set(['高','中','低']), cat: new Set(), city: '', lang: '', bounds: false };
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const mq = matchMedia('(max-width: 760px)');
@@ -241,7 +243,7 @@ const $ = id => document.getElementById(id);
 const side = $('side'), list = $('list');
 
 // ---------- map ----------
-const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([37.35, -121.98], 11);
+const map = L.map('map', { zoomControl: true, attributionControl: false }).setView([37.6, -122.15], 9);
 L.control.attribution({ position: isMobile() ? 'topright' : 'bottomright', prefix: false }).addTo(map);
 const dark = matchMedia('(prefers-color-scheme: dark)').matches;
 // Key-free basemaps: Esri gray canvas (base + labels); fall back to OSM if Esri tiles keep failing.
@@ -277,8 +279,9 @@ function icon(d, sel) {
 
 function links(d) {
   const q = encodeURIComponent(`${d.en} ${d.addr || d.city}`);
+  const pid = d.pid ? `&query_place_id=${encodeURIComponent(d.pid)}` : '';
   return `<div class="links">
-    <a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${q}">Google Maps</a>
+    <a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${q}${pid}">Google Maps</a>
     <a target="_blank" rel="noopener" href="https://www.yelp.com/search?find_desc=${encodeURIComponent(d.en)}&find_loc=${encodeURIComponent(d.city + ', CA')}">Yelp</a>
     <a target="_blank" rel="noopener" href="https://www.xiaohongshu.com/search_result?keyword=${encodeURIComponent((d.zh || d.en) + ' ' + d.city)}">小红书</a>
   </div>`;
@@ -352,13 +355,18 @@ map.on('locationerror', e => {
 
 // ---------- filters ----------
 const count = (pred) => DATA.filter(pred).length;
-function chip(label, pressed, n, onClick) {
+function chip(label, pressed, n, onClick, fit) {
   const b = document.createElement('button');
   b.className = 'chip'; b.type = 'button'; b.setAttribute('aria-pressed', pressed);
   b.innerHTML = `${label}<span class="n">${n}</span>`;
-  b.onclick = () => { onClick(); b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); render(); };
+  b.onclick = () => { onClick(); b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); render(fit); };
   return b;
 }
+const fRegion = $('f-region');
+REGIONS.forEach(r => fRegion.appendChild(chip(r, false, count(d => d.region === r), () => {
+  state.region.has(r) ? state.region.delete(r) : state.region.add(r);
+  fillCities();
+}, true)));
 const fConf = $('f-conf');
 CONF.forEach(([c, cls]) => {
   const b = chip(`<span class="dot ${cls}" style="width:9px;height:9px;margin:0;box-shadow:none"></span>${c}`, true, count(d => d.conf === c),
@@ -369,8 +377,17 @@ const fCat = $('f-cat');
 CATS.forEach(c => fCat.appendChild(chip(c, false, count(d => d.cat === c), () => state.cat.has(c) ? state.cat.delete(c) : state.cat.add(c))));
 
 const citySel = $('f-city');
-const cities = Object.entries(DATA.reduce((a, d) => (a[d.city] = (a[d.city] || 0) + 1, a), {})).sort((a, b) => b[1] - a[1]);
-cities.forEach(([c, n]) => citySel.insertAdjacentHTML('beforeend', `<option value="${esc(c)}">${esc(c)} (${n})</option>`));
+// City list grouped by region, limited to the selected regions; drops a selected city that falls outside them.
+function fillCities() {
+  const regs = REGIONS.filter(r => !state.region.size || state.region.has(r));
+  citySel.innerHTML = '<option value="">全部城市</option>' + regs.map(r => {
+    const cs = Object.entries(DATA.filter(d => d.region === r).reduce((a, d) => (a[d.city] = (a[d.city] || 0) + 1, a), {})).sort((a, b) => b[1] - a[1]);
+    return cs.length ? `<optgroup label="${r}">${cs.map(([c, n]) => `<option value="${esc(c)}">${esc(c)} (${n})</option>`).join('')}</optgroup>` : '';
+  }).join('');
+  if (state.city && !regs.includes(DATA.find(d => d.city === state.city)?.region)) state.city = '';
+  citySel.value = state.city;
+}
+fillCities();
 
 $('q').oninput = e => { state.q = e.target.value.trim().toLowerCase(); render(); };
 $('q').addEventListener('focus', () => { if (isMobile() && side.dataset.snap !== 'full') snap('full'); });
@@ -380,8 +397,9 @@ $('f-lang').onchange = e => { state.lang = e.target.value; render(); };
 $('f-bounds').onchange = e => { state.bounds = e.target.checked; renderList(); };
 map.on('moveend', () => state.bounds && renderList());
 $('reset').onclick = () => {
-  Object.assign(state, { q: '', conf: new Set(['高','中','低']), cat: new Set(), city: '', lang: '' });
-  $('q').value = ''; citySel.value = ''; $('f-lang').value = '';
+  Object.assign(state, { q: '', region: new Set(), conf: new Set(['高','中','低']), cat: new Set(), city: '', lang: '' });
+  $('q').value = ''; $('f-lang').value = ''; fillCities();
+  fRegion.querySelectorAll('.chip').forEach(b => b.setAttribute('aria-pressed', false));
   fConf.querySelectorAll('.chip').forEach(b => b.setAttribute('aria-pressed', true));
   fCat.querySelectorAll('.chip').forEach(b => b.setAttribute('aria-pressed', false));
   render(true);
@@ -394,12 +412,13 @@ $('filter-btn').onclick = () => {
 };
 
 function matches(d) {
+  if (state.region.size && !state.region.has(d.region)) return false;
   if (!state.conf.has(d.conf)) return false;
   if (state.cat.size && !state.cat.has(d.cat)) return false;
   if (state.city && d.city !== state.city) return false;
   if (state.lang && !d.lang.includes(state.lang)) return false;
   if (state.q) {
-    const hay = `${d.en} ${d.zh} ${d.cuisine} ${d.cuisineZh} ${d.cat} ${d.addr} ${d.city} ${d.area}`.toLowerCase();
+    const hay = `${d.en} ${d.zh} ${d.cuisine} ${d.cuisineZh} ${d.cat} ${d.addr} ${d.city} ${d.area} ${d.region}`.toLowerCase();
     if (!hay.includes(state.q)) return false;
   }
   return true;
@@ -419,7 +438,7 @@ function render(fit) {
   cluster.clearLayers();
   cluster.addLayers(filtered.map(d => markers.get(d.id)));
   if (fit && filtered.length) map.fitBounds(L.latLngBounds(filtered.map(d => [d.lat, d.lng])), fitOpts());
-  const n = (state.conf.size < 3) + (state.cat.size > 0) + !!state.city + !!state.lang + state.bounds;
+  const n = (state.region.size > 0) + (state.conf.size < 3) + (state.cat.size > 0) + !!state.city + !!state.lang + state.bounds;
   $('filter-n').hidden = !n; $('filter-n').textContent = n;
   renderList();
 }

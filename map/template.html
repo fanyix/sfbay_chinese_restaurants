@@ -319,7 +319,7 @@ const markers = new Map();
 DATA.forEach(d => {
   const m = L.marker([d.lat, d.lng], { icon: icon(d), title: d.en, riseOnHover: canHover,
     zIndexOffset: d.direct ? 1000 : (d.conf === '高' ? 300 : d.conf === '中' ? 100 : 0) });
-  if (canHover) m.bindTooltip(`<b>${esc(d.zh || d.en)}</b>${d.zh ? ' ' + esc(d.en) : ''}<br><span style="color:var(--muted)">${esc(d.cat)} · 服务员：${esc(d.lang)} · 说中文可能性${d.conf}</span>`, { direction: 'top', offset: [0, -10] });
+  if (canHover) m.bindTooltip(`<b>${esc(d.zh || d.en)}</b>${d.zh ? ' ' + esc(d.en) : ''}<br><span style="color:var(--muted)">${esc(d.cats.join('、'))} · 服务员：${esc(d.lang)} · 说中文可能性${d.conf}</span>`, { direction: 'top', offset: [0, -10] });
   m.bindPopup(() => popup(d), { maxWidth: Math.min(320, innerWidth - 48), autoPanPaddingTopLeft: PAD_TL, autoPanPaddingBottomRight: PAD_BR });
   m.on('popupopen', () => { setActive(d.id); if (isMobile()) snap('peek'); });
   markers.set(d.id, m);
@@ -385,7 +385,7 @@ CONF.forEach(([c, cls]) => {
   fConf.appendChild(b);
 });
 const fCat = $('f-cat');
-CATS.forEach(c => fCat.appendChild(chip(c, false, count(d => d.cat === c), () => state.cat.has(c) ? state.cat.delete(c) : state.cat.add(c))));
+CATS.forEach(c => fCat.appendChild(chip(c, false, count(d => d.cats.includes(c)), () => state.cat.has(c) ? state.cat.delete(c) : state.cat.add(c))));
 
 const citySel = $('f-city');
 // City list grouped by region, limited to the selected regions; drops a selected city that falls outside them.
@@ -425,11 +425,11 @@ $('filter-btn').onclick = () => {
 function matches(d) {
   if (state.region.size && !state.region.has(d.region)) return false;
   if (!state.conf.has(d.conf)) return false;
-  if (state.cat.size && !state.cat.has(d.cat)) return false;
+  if (state.cat.size && !d.cats.some(c => state.cat.has(c))) return false;
   if (state.city && d.city !== state.city) return false;
   if (state.lang && !d.lang.includes(state.lang)) return false;
   if (state.q) {
-    const hay = `${d.en} ${d.zh} ${d.cuisine} ${d.cuisineZh} ${d.cat} ${d.addr} ${d.city} ${d.area} ${d.region}`.toLowerCase();
+    const hay = `${d.en} ${d.zh} ${d.cuisine} ${d.cuisineZh} ${d.cats.join(' ')} ${d.addr} ${d.city} ${d.area} ${d.region}`.toLowerCase();
     if (!hay.includes(state.q)) return false;
   }
   return true;

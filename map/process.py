@@ -118,8 +118,10 @@ CANTO = {'Cantonese', 'Cantonese dim sum', 'Hong Kong cafe (cha chaan teng)', 'H
 VIET = re.compile(r'Vietnamese|Pho|越南|Southeast Asian|Cambodian|Malaysian|Singaporean|Indonesian|Laotian', re.I)
 FUSION = re.compile(r'Asian fusion|亚洲混合', re.I)
 
-def cat_of(cuisine):
+def cats_of(cuisine, first=None):
+    """Every filter bucket the cuisine matches (a 'Shanghainese/Sichuan' place is in both 江浙 and 川湘); 其他中餐 only if none."""
     c = cuisine.lower()
+    out = [first] if first and first != '其他中餐' else []
     for cat, kws in [('火锅/麻辣烫', ['hot pot', 'shabu', 'malatang']), ('美式中餐/越南华人', ['american', 'vietnamese', 'teochew', 'chiu chow']),
                      ('台湾菜', ['taiwan']), ('粤菜/港式', ['cantonese', 'hong kong', 'hk', 'dim sum', 'cha chaan']),
                      ('川湘/西南', ['sichuan', 'hunan', 'chongqing', 'guizhou', 'guangxi', 'yunnan']),
@@ -127,8 +129,8 @@ def cat_of(cuisine):
                      ('江浙', ['shanghai', 'zhejiang', 'jiangsu', 'hangzhou', 'suzhou', 'ningbo', 'nanjing', 'huaiyang', 'wuxi']),
                      ('北方/东北', ['northern', 'dongbei', 'northeast', 'beijing', 'shandong', 'mongolian', 'tianjin']),
                      ('面食/饺子', ['noodle', 'dumpling', 'bun', 'xlb', 'huoshao'])]:
-        if any(k in c for k in kws): return cat
-    return '其他中餐'
+        if any(k in c for k in kws) and cat not in out: out.append(cat)
+    return out or ['其他中餐']
 
 def cjk_part(s):
     """Chinese part of a mixed name: first CJK run of 2+ chars (e.g. 'Home Eat汉家宴 - Santa Clara' -> '汉家宴')."""
@@ -207,7 +209,7 @@ def rate(r, au):
     area = SF_ZIP.get(z.group(1), '') if (city == 'San Francisco' and z) else ''
     return {'conf': conf, 'direct': False, 'city': city, 'area': area, 'region': reg,
             'en': strip_zh(r['name']) if zsrc == 'en' else r['name'], 'zh': zh,
-            'addr': r['addr'], 'cuisine': cuisine, 'cuisineZh': cz, 'cat': cat_of(cuisine), 'lang': lang, 'ev': '; '.join(ev),
+            'addr': r['addr'], 'cuisine': cuisine, 'cuisineZh': cz, 'cats': cats_of(cuisine), 'lang': lang, 'ev': '; '.join(ev),
             'lat': r['lat'], 'lng': r['lng'], 'approx': False, 'pid': r['pid']}
 
 def load_raw():
@@ -229,7 +231,8 @@ def existing():
     d = J('data_southbay_backup.json'); g = J('gmaps_status.json')   # original 213 South Bay entries
     for x in d:
         x['region'] = '南湾'
-        if x['cat'] == '北方/东北/江浙': x['cat'] = cat_of(x['cuisine'])   # bucket was split in two
+        old = x.pop('cat')   # hand-assigned single bucket; keep it first, add any others the cuisine matches
+        x['cats'] = cats_of(x['cuisine'], None if old == '北方/东北/江浙' else old)   # that bucket was split in two
         if x.get('pid'): continue
         best = None
         for v in g.values():

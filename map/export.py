@@ -4,7 +4,7 @@ H = os.path.dirname(os.path.abspath(__file__)); R = os.path.dirname(H)
 d = json.load(open(os.path.join(H, 'data.json')))
 cols = ['地区', '城市', '区域', '可信度', '直接证据', '英文名', '中文名', '地址', '菜系', '菜系分类', '语言', '依据']
 row = lambda x: [x['region'], x['city'], x['area'], x['conf'], '是' if x['direct'] else '', x['en'], x['zh'], x['addr'],
-                 x['cuisineZh'], x['cat'], x['lang'], x['ev']]
+                 x['cuisineZh'], '、'.join(x['cats']), x['lang'], x['ev']]
 with open(os.path.join(R, '湾区中餐馆_汇总.csv'), 'w', newline='', encoding='utf-8-sig') as f:
     w = csv.writer(f); w.writerow(cols); w.writerows(row(x) for x in d)
 reg = collections.Counter(x['region'] for x in d)

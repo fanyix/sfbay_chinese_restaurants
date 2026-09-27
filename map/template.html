@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>南湾中餐馆地图</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --hair: #e1e0d9;
+  --ring: rgba(11,11,11,0.10);
+  --hover: rgba(11,11,11,0.04);
+  --accent: #2a78d6;
+  /* ordinal confidence ramp (blue, light->dark = low->high) */
+  --c-high: #184f95;
+  --c-mid:  #3987e5;
+  --c-low:  #86b6ef;
+  --marker-ring: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --hair: #2c2c2a;
+    --ring: rgba(255,255,255,0.10);
+    --hover: rgba(255,255,255,0.06);
+    --accent: #3987e5;
+    --c-high: #9ec5f4;
+    --c-mid:  #3987e5;
+    --c-low:  #1c5cab;
+    --marker-ring: #1a1a19;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Hiragino Sans GB", sans-serif;
+  background: var(--page); color: var(--ink); font-size: 14px;
+  display: grid; grid-template-columns: 380px 1fr; height: 100vh;
+}
+#side { display: flex; flex-direction: column; min-height: 0; background: var(--surface); border-right: 1px solid var(--hair); }
+#map { height: 100%; }
+header { padding: 16px 16px 8px; }
+h1 { font-size: 18px; margin: 0 0 4px; font-weight: 650; }
+.sub { color: var(--ink-2); font-size: 12px; line-height: 1.5; }
+.filters { padding: 8px 16px 12px; border-bottom: 1px solid var(--hair); display: grid; gap: 10px; }
+.search { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--hair); background: var(--page); color: var(--ink); font: inherit; }
+.search:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.row > .lbl { color: var(--muted); font-size: 12px; width: 44px; flex: none; }
+.chip {
+  border: 1px solid var(--hair); background: transparent; color: var(--ink-2);
+  border-radius: 999px; padding: 3px 10px; font: inherit; font-size: 12px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.chip:hover { background: var(--hover); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.chip .n { color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip[aria-pressed="true"] .n { color: inherit; opacity: .7; }
+select { font: inherit; font-size: 12px; padding: 4px 6px; border-radius: 6px; border: 1px solid var(--hair); background: var(--page); color: var(--ink); }
+label.tog { font-size: 12px; color: var(--ink-2); display: inline-flex; gap: 5px; align-items: center; cursor: pointer; }
+.count { padding: 8px 16px; color: var(--ink-2); font-size: 12px; border-bottom: 1px solid var(--hair); display: flex; justify-content: space-between; }
+.count a { color: var(--accent); cursor: pointer; text-decoration: none; }
+#list { overflow-y: auto; flex: 1; min-height: 0; }
+.item { padding: 10px 16px; border-bottom: 1px solid var(--hair); cursor: pointer; display: grid; grid-template-columns: 16px 1fr; gap: 8px; }
+.item:hover, .item.active { background: var(--hover); }
+.item .t { font-weight: 600; }
+.item .t .zh { font-weight: 600; }
+.item .t .en { font-weight: 400; color: var(--ink-2); margin-left: 4px; }
+.item .m { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.dot { width: 12px; height: 12px; border-radius: 50%; margin-top: 4px; box-shadow: 0 0 0 2px var(--marker-ring), 0 0 0 3px var(--ring); }
+.dot.high { background: var(--c-high); } .dot.mid { background: var(--c-mid); } .dot.low { background: var(--c-low); }
+.badge { display: inline-block; font-size: 11px; padding: 0 6px; border-radius: 4px; border: 1px solid var(--hair); color: var(--ink-2); margin-left: 4px; white-space: nowrap; }
+.badge.ok { border-color: var(--ink-2); color: var(--ink); font-weight: 600; }
+
+/* markers */
+.mk { border-radius: 50%; box-shadow: 0 0 0 2px var(--marker-ring), 0 1px 3px rgba(0,0,0,.35); }
+.mk.high { background: var(--c-high); } .mk.mid { background: var(--c-mid); } .mk.low { background: var(--c-low); }
+.mk.direct { display: grid; place-items: center; color: #fff; font-size: 12px; font-weight: 700; box-shadow: 0 0 0 2px var(--marker-ring), 0 0 0 4px var(--c-high), 0 1px 4px rgba(0,0,0,.4); }
+@media (prefers-color-scheme: dark) { .mk.direct { color: #0b0b0b; } }
+.mk.sel { outline: 3px solid var(--accent); outline-offset: 2px; }
+.cl {
+  background: var(--surface); color: var(--ink); border-radius: 50%;
+  display: grid; place-items: center; font-weight: 650; font-size: 12px; font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 1px var(--ring), 0 1px 4px rgba(0,0,0,.25);
+}
+.cl span { display: grid; place-items: center; width: 100%; height: 100%; border-radius: 50%; border: 3px solid var(--c-mid); }
+
+.leaflet-popup-content-wrapper, .leaflet-popup-tip, .leaflet-tooltip { background: var(--surface); color: var(--ink); }
+.leaflet-tooltip { border: 1px solid var(--hair); box-shadow: 0 2px 8px rgba(0,0,0,.15); font-size: 12px; }
+.leaflet-popup-content { margin: 12px 14px; font-size: 13px; line-height: 1.5; min-width: 240px; }
+.pp h3 { margin: 0; font-size: 15px; }
+.pp .en { color: var(--ink-2); }
+.pp dl { display: grid; grid-template-columns: 72px 1fr; gap: 2px 8px; margin: 8px 0; }
+.pp dt { color: var(--muted); }
+.pp dd { margin: 0; }
+.pp .ev { color: var(--ink-2); font-size: 12px; border-top: 1px solid var(--hair); padding-top: 6px; }
+.pp .links { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.pp .links a { font-size: 12px; text-decoration: none; color: var(--ink); border: 1px solid var(--hair); border-radius: 6px; padding: 2px 8px; }
+.pp .links a:hover { background: var(--hover); }
+
+.legend { background: var(--surface); color: var(--ink); padding: 8px 10px; border-radius: 8px; box-shadow: 0 0 0 1px var(--ring), 0 1px 4px rgba(0,0,0,.15); font-size: 12px; line-height: 1.9; }
+.legend .li { display: flex; align-items: center; gap: 8px; }
+.legend .mk { display: inline-block; flex: none; }
+.legend .t { color: var(--ink-2); }
+
+@media (max-width: 760px) {
+  body { grid-template-columns: 1fr; grid-template-rows: 50vh 1fr; }
+  #map { grid-row: 1; }
+  #side { grid-row: 2; border-right: 0; border-top: 1px solid var(--hair); }
+}
+</style>
+</head>
+<body>
+<aside id="side">
+  <header>
+    <h1>南湾中餐馆地图</h1>
+    <div class="sub">共 <b id="total"></b> 家中餐馆，每家都标了服务员说中文的可能性和语言（普通话/粤语）。只有标 ✓ 的有评论直接证实，其余是按华人经营、中文店名和菜系推断的，去之前建议先打电话确认。</div>
+  </header>
+  <div class="filters">
+    <input id="q" class="search" type="search" placeholder="搜索店名 / 中文名 / 菜系 / 地址">
+    <div class="row"><span class="lbl">说中文</span><span id="f-conf" class="row"></span></div>
+    <div class="row"><span class="lbl">菜系</span><span id="f-cat" class="row"></span></div>
+    <div class="row">
+      <span class="lbl">城市</span><select id="f-city"><option value="">全部城市</option></select>
+      <select id="f-lang"><option value="">服务员语言：不限</option><option value="普通话">普通话</option><option value="粤语">粤语</option></select>
+    </div>
+    <div class="row">
+      <span class="lbl"></span>
+      <label class="tog"><input type="checkbox" id="f-bounds"> 只列出地图范围内</label>
+    </div>
+  </div>
+  <div class="count"><span id="shown"></span><a id="reset">清除筛选</a></div>
+  <div id="list" role="list"></div>
+</aside>
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script>
+const DATA = __DATA__;
+const CONF = [['高','high'],['中','mid'],['低','low']];
+const CONF_CLS = Object.fromEntries(CONF);
+const CONF_DESC = {'高':'华人经营 + 中文店名/网站','中':'中餐，有中文名或菜单','低':'弱推断（美式中餐/越南华人等）'};
+const SIZE = {high: 16, mid: 13, low: 10};
+const CATS = ['粤菜/港式','川湘/西南','台湾菜','火锅/麻辣烫','北方/东北/江浙','西北/新疆/清真','面食/饺子','美式中餐/越南华人','其他中餐'];
+
+const state = { q: '', conf: new Set(['高','中','低']), cat: new Set(), city: '', lang: '', bounds: false };
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// ---------- map ----------
+const map = L.map('map', { zoomControl: true, preferCanvas: false }).setView([37.35, -121.98], 11);
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+// Key-free basemaps: Esri gray canvas (base + labels); fall back to OSM if Esri tiles keep failing.
+const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/';
+const esriOpts = { attribution: 'Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors', maxNativeZoom: 16, maxZoom: 20 };
+const base = L.tileLayer(`${ESRI}${dark ? 'World_Dark_Gray_Base' : 'World_Light_Gray_Base'}/MapServer/tile/{z}/{y}/{x}`, esriOpts).addTo(map);
+const labels = L.tileLayer(`${ESRI}${dark ? 'World_Dark_Gray_Reference' : 'World_Light_Gray_Reference'}/MapServer/tile/{z}/{y}/{x}`, { ...esriOpts, attribution: '' }).addTo(map);
+let tileErrors = 0;
+base.on('tileerror', () => {
+  if (++tileErrors !== 6) return;
+  map.removeLayer(base); map.removeLayer(labels);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors', maxZoom: 19 }).addTo(map);
+});
+
+const cluster = L.markerClusterGroup({
+  showCoverageOnHover: false, maxClusterRadius: 40, spiderfyOnMaxZoom: true, disableClusteringAtZoom: 17,
+  iconCreateFunction: c => {
+    const n = c.getChildCount(), s = n < 10 ? 30 : n < 30 ? 36 : 44;
+    return L.divIcon({ html: `<span>${n}</span>`, className: 'cl', iconSize: [s, s] });
+  }
+});
+map.addLayer(cluster);
+
+function icon(d, sel) {
+  const cls = CONF_CLS[d.conf];
+  const s = d.direct ? 20 : SIZE[cls];
+  return L.divIcon({
+    className: '', iconSize: [s, s], iconAnchor: [s/2, s/2],
+    html: `<div class="mk ${cls}${d.direct ? ' direct' : ''}${sel ? ' sel' : ''}" style="width:${s}px;height:${s}px">${d.direct ? '✓' : ''}</div>`
+  });
+}
+
+function links(d) {
+  const q = encodeURIComponent(`${d.en} ${d.addr || d.city}`);
+  return `<div class="links">
+    <a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${q}">Google Maps</a>
+    <a target="_blank" rel="noopener" href="https://www.yelp.com/search?find_desc=${encodeURIComponent(d.en)}&find_loc=${encodeURIComponent(d.city + ', CA')}">Yelp</a>
+    <a target="_blank" rel="noopener" href="https://www.xiaohongshu.com/search_result?keyword=${encodeURIComponent((d.zh || d.en) + ' ' + d.city)}">小红书</a>
+  </div>`;
+}
+
+function popup(d) {
+  return `<div class="pp">
+    <h3>${esc(d.zh || d.en)}${d.direct ? ' <span class="badge ok">✓ 已证实说中文</span>' : ''}</h3>
+    ${d.zh ? `<div class="en">${esc(d.en)}</div>` : ''}
+    <dl>
+      <dt>说中文</dt><dd><span class="dot ${CONF_CLS[d.conf]}" style="display:inline-block;width:9px;height:9px;margin:0 4px 0 0;vertical-align:0"></span>${d.conf} · ${CONF_DESC[d.conf]}</dd>
+      <dt>服务员语言</dt><dd>${esc(d.lang)}</dd>
+      <dt>菜系</dt><dd>${esc(d.cuisine)}</dd>
+      <dt>地址</dt><dd>${esc(d.addr || '（无地址，位置为估计）')}</dd>
+    </dl>
+    <div class="ev">依据：${esc(d.ev)}</div>
+    ${links(d)}
+  </div>`;
+}
+
+const markers = new Map();
+DATA.forEach(d => {
+  const m = L.marker([d.lat, d.lng], { icon: icon(d), title: d.en, riseOnHover: true,
+    zIndexOffset: d.direct ? 1000 : (d.conf === '高' ? 300 : d.conf === '中' ? 100 : 0) });
+  m.bindTooltip(`<b>${esc(d.zh || d.en)}</b>${d.zh ? ' ' + esc(d.en) : ''}<br><span style="color:var(--muted)">${esc(d.cat)} · 服务员：${esc(d.lang)} · 说中文可能性${d.conf}</span>`, { direction: 'top', offset: [0, -8] });
+  m.bindPopup(() => popup(d), { maxWidth: 320 });
+  m.on('popupopen', () => setActive(d.id));
+  markers.set(d.id, m);
+});
+
+// legend
+const legend = L.control({ position: 'bottomleft' });
+legend.onAdd = () => {
+  const div = L.DomUtil.create('div', 'legend');
+  div.innerHTML = `<div style="font-weight:600">服务员说中文的可能性</div><div class="li"><span class="mk high direct" style="width:18px;height:18px;font-size:11px">✓</span><span>✓ 已证实 <span class="t">评论明确提到说中文</span></span></div>` +
+    CONF.map(([c, cls]) => `<div class="li"><span style="width:18px;display:grid;place-items:center"><span class="mk ${cls}" style="width:${SIZE[cls]}px;height:${SIZE[cls]}px"></span></span><span>${c} <span class="t">${CONF_DESC[c]}</span></span></div>`).join('');
+  return div;
+};
+legend.addTo(map);
+
+// ---------- filters ----------
+const count = (pred) => DATA.filter(pred).length;
+function chip(label, pressed, n, onClick) {
+  const b = document.createElement('button');
+  b.className = 'chip'; b.type = 'button'; b.setAttribute('aria-pressed', pressed);
+  b.innerHTML = `${label}<span class="n">${n}</span>`;
+  b.onclick = () => { onClick(); b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); render(); };
+  return b;
+}
+const fConf = document.getElementById('f-conf');
+CONF.forEach(([c, cls]) => {
+  const b = chip(`<span class="dot ${cls}" style="width:9px;height:9px;margin:0;box-shadow:none"></span>${c}`, true, count(d => d.conf === c),
+    () => state.conf.has(c) ? state.conf.delete(c) : state.conf.add(c));
+  fConf.appendChild(b);
+});
+const fCat = document.getElementById('f-cat');
+CATS.forEach(c => fCat.appendChild(chip(c, false, count(d => d.cat === c), () => state.cat.has(c) ? state.cat.delete(c) : state.cat.add(c))));
+
+const citySel = document.getElementById('f-city');
+const cities = Object.entries(DATA.reduce((a, d) => (a[d.city] = (a[d.city] || 0) + 1, a), {})).sort((a, b) => b[1] - a[1]);
+cities.forEach(([c, n]) => citySel.insertAdjacentHTML('beforeend', `<option value="${esc(c)}">${esc(c)} (${n})</option>`));
+
+document.getElementById('q').oninput = e => { state.q = e.target.value.trim().toLowerCase(); render(); };
+citySel.onchange = e => { state.city = e.target.value; render(true); };
+document.getElementById('f-lang').onchange = e => { state.lang = e.target.value; render(); };
+document.getElementById('f-bounds').onchange = e => { state.bounds = e.target.checked; renderList(); };
+map.on('moveend', () => state.bounds && renderList());
+document.getElementById('reset').onclick = () => {
+  Object.assign(state, { q: '', conf: new Set(['高','中','低']), cat: new Set(), city: '', lang: '' });
+  document.getElementById('q').value = ''; citySel.value = ''; document.getElementById('f-lang').value = '';
+  fConf.querySelectorAll('.chip').forEach(b => b.setAttribute('aria-pressed', true));
+  fCat.querySelectorAll('.chip').forEach(b => b.setAttribute('aria-pressed', false));
+  render(true);
+};
+
+function matches(d) {
+  if (!state.conf.has(d.conf)) return false;
+  if (state.cat.size && !state.cat.has(d.cat)) return false;
+  if (state.city && d.city !== state.city) return false;
+  if (state.lang && !d.lang.includes(state.lang)) return false;
+  if (state.q) {
+    const hay = `${d.en} ${d.zh} ${d.cuisine} ${d.cat} ${d.addr} ${d.city} ${d.area}`.toLowerCase();
+    if (!hay.includes(state.q)) return false;
+  }
+  return true;
+}
+
+const ORDER = { '高': 0, '中': 1, '低': 2 };
+let filtered = [];
+function render(fit) {
+  filtered = DATA.filter(matches).sort((a, b) => (b.direct - a.direct) || ORDER[a.conf] - ORDER[b.conf] || a.city.localeCompare(b.city) || a.en.localeCompare(b.en));
+  cluster.clearLayers();
+  cluster.addLayers(filtered.map(d => markers.get(d.id)));
+  if (fit && filtered.length) map.fitBounds(L.latLngBounds(filtered.map(d => [d.lat, d.lng])).pad(0.1), { maxZoom: 15 });
+  renderList();
+}
+
+let activeId = null;
+function renderList() {
+  const b = map.getBounds();
+  const rows = state.bounds ? filtered.filter(d => b.contains([d.lat, d.lng])) : filtered;
+  document.getElementById('shown').textContent = `显示 ${rows.length} / ${DATA.length} 家`;
+  document.getElementById('list').innerHTML = rows.map(d => `
+    <div class="item${d.id === activeId ? ' active' : ''}" role="listitem" data-id="${d.id}">
+      <span class="dot ${CONF_CLS[d.conf]}"></span>
+      <div>
+        <div class="t"><span class="zh">${esc(d.zh || d.en)}</span>${d.zh ? `<span class="en">${esc(d.en)}</span>` : ''}${d.direct ? '<span class="badge ok">✓ 已证实说中文</span>' : ''}</div>
+        <div class="m">${esc(d.city)} · ${esc(d.cuisine)} · 服务员：${esc(d.lang)} · 说中文可能性${d.conf}</div>
+      </div>
+    </div>`).join('') || '<div class="item" style="display:block;color:var(--muted)">没有符合条件的餐馆</div>';
+}
+
+document.getElementById('list').addEventListener('click', e => {
+  const el = e.target.closest('.item[data-id]'); if (!el) return;
+  const m = markers.get(+el.dataset.id);
+  cluster.zoomToShowLayer(m, () => m.openPopup());
+});
+document.getElementById('list').addEventListener('mouseover', e => {
+  const el = e.target.closest('.item[data-id]'); if (!el) return;
+  const m = markers.get(+el.dataset.id); if (m._icon) m.openTooltip();
+});
+
+function setActive(id) {
+  if (activeId !== null && markers.has(activeId)) markers.get(activeId).setIcon(icon(DATA[activeId]));
+  activeId = id;
+  markers.get(id).setIcon(icon(DATA[id], true));
+  document.querySelectorAll('.item.active').forEach(x => x.classList.remove('active'));
+  const el = document.querySelector(`.item[data-id="${id}"]`);
+  if (el) { el.classList.add('active'); el.scrollIntoView({ block: 'nearest' }); }
+}
+
+document.getElementById('total').textContent = DATA.length;
+render(true);
+</script>
+</body>
+</html>

@@ -259,9 +259,9 @@ def candidates():
 if __name__ == '__main__':
     import sys
     ex, cand, drop = candidates()
-    if sys.argv[1:] == ['audit-list']:
+    if sys.argv[1:2] == ['audit-list']:   # 'audit-list all' also re-checks South Bay entries that already have a Chinese name
         items = [{'pid': r['pid'], 'name': r['name'], 'addr': r['addr']} for r in cand]
-        items += [{'pid': x['pid'], 'name': x['en'], 'addr': x['addr']} for x in ex if x['pid'] and not x['zh']]
+        items += [{'pid': x['pid'], 'name': x['en'], 'addr': x['addr']} for x in ex if x['pid'] and (not x['zh'] or sys.argv[2:] == ['all'])]
         json.dump(items, open(os.path.join(H, 'audit_items.json'), 'w'), ensure_ascii=False); print(len(items), 'to audit'); sys.exit()
     au = {}
     for f in sorted(os.listdir(H)):
@@ -270,7 +270,8 @@ if __name__ == '__main__':
     new = []
     for r in cand:
         a = au.get(r['pid'])
-        if a and (a['p23'] == 1 or a['p88'] == 'CLOSED'): closed.append((r['name'], r['addr'], 'Google 地图中文版复核显示已停业')); continue
+        if a and (a['p23'] == 1 or a['p88'] == 'CLOSED'):
+            closed.append([strip_zh(r['name']), cjk_part(r['name']), city_of(r['addr']), r['addr'], 'Google Maps 复核显示 Permanently closed（未收录）']); continue
         new.append(rate(r, a))
     # existing entries: add Chinese names Google shows in zh-CN when we had none
     zh_added = 0
@@ -279,11 +280,22 @@ if __name__ == '__main__':
         if a and not x['zh'] and CJK.search(a['zh'] or '') and a['zh'] != x['en']:
             x['zh'] = cjk_part(a['zh']); zh_added += 1
             x['ev'] = f"Google 地图中文版显示中文店名「{a['zh']}」; " + x['ev']
+    # Chinese restaurants that discovery already saw as closed (would otherwise have passed the filter)
+    for r in load_raw().values():
+        if (r.get('desc') == 'CLOSED' or r.get('p23') == 1) and is_candidate(dict(r, desc=None, p23=None))[0]:
+            closed.append([strip_zh(r['name']), cjk_part(r['name']), city_of(r['addr']), r['addr'], 'Google Maps 标注 Permanently closed（湾区扩展时剔除，未收录）'])
+    keep = []
+    for x in ex:
+        a = au.get(x['pid'] or '')
+        if a and (a['p23'] == 1 or a['p88'] == 'CLOSED'):
+            closed.append([x['en'], x['zh'], x['city'], x['addr'], 'Google Maps 复核显示 Permanently closed（已从地图移除）'])
+        else: keep.append(x)
+    ex = keep
     allr = ex + new
     order = ['旧金山', '半岛', '东湾', '南湾', '北湾']
     allr.sort(key=lambda x: (order.index(x['region']), x['city'], '高中低'.index(x['conf']), x['en'].lower()))
     for i, x in enumerate(allr): x['id'] = i
     json.dump(allr, open(os.path.join(H, 'data.json'), 'w'), ensure_ascii=False, indent=0)
     json.dump(closed, open(os.path.join(H, 'closed_new.json'), 'w'), ensure_ascii=False, indent=0)
-    print('dropped:', dict(drop)); print('closed on audit:', len(closed), '| zh names added to South Bay:', zh_added)
+    print('dropped:', dict(drop)); print('closed, logged not included:', len(closed), '| zh names added to South Bay:', zh_added)
     print('total', len(allr), collections.Counter(x['region'] for x in allr), collections.Counter(x['conf'] for x in allr))

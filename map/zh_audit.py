@@ -1,7 +1,7 @@
 # For each candidate place, look it up on Google Maps in zh-CN to get its Chinese-locale name + fresh open/closed status.
 import json, os, sys, time, urllib.parse
 H = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, H)
-from gmaps import get as _get, walk
+from gmaps import get as _get, walk, pb_template
 
 def get(u):
     for i in range(4):
@@ -9,7 +9,7 @@ def get(u):
         except Exception as e:
             print('  net error, retrying:', e, flush=True); time.sleep(20 * (i + 1))
     return ''
-TEMPLATE = open('/tmp/pb_url.txt').read().replace('hl=en', 'hl=zh-CN')
+TEMPLATE = pb_template(os.path.join(H, 'pb_template.txt')).replace('hl=en', 'hl=zh-CN')
 TQ = 'Chinese+restaurant+in+Daly+City%2C+CA'
 OUT = os.path.join(H, 'zh_audit.json')
 

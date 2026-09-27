@@ -1,6 +1,6 @@
 # Discover Chinese restaurants across the Bay Area via Google Maps search (paginated), saving raw place records.
 import json, os, re, sys, time, urllib.parse
-sys.path.insert(0, os.path.dirname(__file__)); from gmaps import get as _get, walk
+sys.path.insert(0, os.path.dirname(__file__)); from gmaps import get as _get, walk, pb_template
 
 def get(u):
     for i in range(4):
@@ -38,7 +38,7 @@ done = set(json.load(open(DONE))) if os.path.exists(DONE) else set()
 if N > 1 and os.path.exists(BASE_DONE): done |= set(json.load(open(BASE_DONE)))
 AREAS = AREAS[K::N]
 
-TEMPLATE = open('/tmp/pb_url.txt').read()          # captured Maps search URL; query swapped per request
+TEMPLATE = pb_template(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'pb_template.txt'))   # query swapped per request
 TQ = 'Chinese+restaurant+in+Daly+City%2C+CA'
 assert TEMPLATE.count(TQ) >= 1, 'template query not found'
 

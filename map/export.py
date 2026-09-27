@@ -19,6 +19,13 @@ for r in ['旧金山', '半岛', '东湾', '南湾', '北湾']:
     md += ['| ' + ' | '.join(str(v).replace('|', '/') for v in row(x)[1:]) + ' |' for x in rows]
     md.append('')
 open(os.path.join(R, '湾区中餐馆_汇总.md'), 'w').write('\n'.join(md))
+# append newly found closed restaurants to the removal log (skip ones already logged)
+cp, lp = os.path.join(H, 'closed_new.json'), os.path.join(R, '已停业_已移除.csv')
+if os.path.exists(cp):
+    have = {(r[0], r[3]) for r in csv.reader(open(lp, encoding='utf-8-sig'))}
+    add = sorted((c for c in json.load(open(cp)) if (c[0], c[3]) not in have), key=lambda c: (c[2] or '', c[0]))
+    with open(lp, 'a', newline='', encoding='utf-8') as f: csv.writer(f).writerows(add)
+    print('closed log: +', len(add))
 t = open(os.path.join(H, 'template.html')).read()
 open(os.path.join(R, 'index.html'), 'w').write(t.replace('__DATA__', json.dumps(d, ensure_ascii=False).replace('</', '<\\/')))
 print('wrote', len(d))

@@ -10,6 +10,16 @@ def lookup(q):
     u=m.group(0).replace('&amp;','&').replace('\\u0026','&')
     txt=get('https://www.google.com/'+u)
     return txt,None
+def pb_template(cache, q='Chinese restaurant in Daly City, CA'):
+    """Paginated Maps search URL (path after google.com/) for query q, cached to a file. Callers swap the query text."""
+    import os
+    if os.path.exists(cache): return open(cache).read()
+    page=get('https://www.google.com/maps/search/?api=1&query='+urllib.parse.quote_plus(q))
+    m=re.search(r'search\?tbm=map[^"]*',page)
+    if not m: raise SystemExit('Google Maps search endpoint not found; page format changed')
+    u=m.group(0).replace('&amp;','&').replace('\\u0026','&')
+    open(cache,'w').write(u)
+    return u
 def walk(o,f,path=()):
     f(o,path)
     if isinstance(o,list):
